@@ -1,0 +1,347 @@
+type _ImmutableObjectStorageRefillResult = 
+ record {
+   success: opt bool;
+   topped_up_amount: opt nat;
+ };
+type _ImmutableObjectStorageRefillInformation = record {
+                                                  proposed_top_up_amount:
+                                                   opt nat;};
+type _ImmutableObjectStorageCreateCertificateResult = 
+ record {
+   blob_hash: text;
+   method: text;
+ };
+type UserRole = 
+ variant {
+   admin;
+   guest;
+   user;
+ };
+type UserProfileInput = 
+ record {
+   address:
+    opt
+     record {
+       city: text;
+       line1: text;
+       line2: text;
+       pincode: text;
+       state: text;
+     };
+   email: text;
+   name: text;
+   phone: text;
+   preferredLanguage: text;
+ };
+type UserProfile = 
+ record {
+   address:
+    opt
+     record {
+       city: text;
+       line1: text;
+       line2: text;
+       pincode: text;
+       state: text;
+     };
+   email: text;
+   name: text;
+   phone: text;
+   preferredLanguage: text;
+   recentlyViewed: vec ProductId;
+   referralCode: ReferralCode;
+   referredBy: opt ReferralCode;
+   rewardPoints: nat;
+   wishlist: vec ProductId;
+ };
+type UserId = principal;
+type TrackingStep = 
+ record {
+   note: text;
+   status: OrderStatus;
+   timestamp: opt Timestamp;
+ };
+type Timestamp = int;
+type Specification = 
+ record {
+   key: text;
+   value: text;
+ };
+type ReviewInput = 
+ record {
+   comment: text;
+   productId: ProductId;
+   rating: nat;
+ };
+type ReviewId = nat;
+type Review = 
+ record {
+   comment: text;
+   createdAt: Timestamp;
+   id: ReviewId;
+   productId: ProductId;
+   rating: nat;
+   userId: UserId;
+ };
+type ReferralCode = text;
+type ProductInput = 
+ record {
+   category: text;
+   description: text;
+   images: vec ExternalBlob;
+   isFlashDeal: bool;
+   isTrending: bool;
+   name: text;
+   originalPrice: nat;
+   price: nat;
+   specifications: vec Specification;
+   stock: nat;
+   tags: vec text;
+ };
+type ProductId = nat;
+type Product = 
+ record {
+   category: text;
+   createdAt: Timestamp;
+   description: text;
+   id: ProductId;
+   images: vec ExternalBlob;
+   isFlashDeal: bool;
+   isTrending: bool;
+   name: text;
+   originalPrice: nat;
+   price: nat;
+   rating: float64;
+   reviewCount: nat;
+   specifications: vec Specification;
+   stock: nat;
+   tags: vec text;
+ };
+type PlaceOrderInput = 
+ record {
+   address: Address;
+   couponApplied: opt text;
+   discountAmount: nat;
+   items: vec OrderItem;
+   paymentMethod: PaymentMethod;
+   totalAmount: nat;
+ };
+type PaymentStatus = 
+ variant {
+   failed;
+   paid;
+   pending;
+   refunded;
+ };
+type PaymentMethod = 
+ variant {
+   card;
+   cod;
+   split: record {
+            amount1: nat;
+            amount2: nat;
+            method1: text;
+            method2: text;
+          };
+   upi;
+   wallet;
+ };
+type OrderStatus = 
+ variant {
+   cancelled;
+   delivered;
+   ordered;
+   out_for_delivery;
+   packed;
+   shipped;
+ };
+type OrderItem = 
+ record {
+   image: ExternalBlob;
+   name: text;
+   price: nat;
+   productId: ProductId;
+   quantity: nat;
+ };
+type OrderId = nat;
+type Order = 
+ record {
+   address: Address;
+   couponApplied: opt text;
+   createdAt: Timestamp;
+   discountAmount: nat;
+   id: OrderId;
+   items: vec OrderItem;
+   paymentMethod: PaymentMethod;
+   paymentStatus: PaymentStatus;
+   status: OrderStatus;
+   totalAmount: nat;
+   trackingSteps: vec TrackingStep;
+   updatedAt: Timestamp;
+   userId: UserId;
+ };
+type NotificationType = 
+ variant {
+   deal;
+   order;
+   price_drop;
+   reward;
+ };
+type NotificationId = nat;
+type Notification = 
+ record {
+   body: text;
+   createdAt: Timestamp;
+   id: NotificationId;
+   isRead: bool;
+   notificationType: NotificationType;
+   title: text;
+   userId: UserId;
+ };
+type ExternalBlob = blob;
+type DiscountType = 
+ variant {
+   flat;
+   percent;
+ };
+type CouponInput = 
+ record {
+   code: CouponCode;
+   discountType: DiscountType;
+   discountValue: nat;
+   expiresAt: Timestamp;
+   isActive: bool;
+   maxDiscount: nat;
+   maxUsage: nat;
+   minOrderValue: nat;
+ };
+type CouponCode = text;
+type Coupon = 
+ record {
+   code: CouponCode;
+   discountType: DiscountType;
+   discountValue: nat;
+   expiresAt: Timestamp;
+   isActive: bool;
+   maxDiscount: nat;
+   maxUsage: nat;
+   minOrderValue: nat;
+   usageCount: nat;
+ };
+type CartItem = 
+ record {
+   productId: ProductId;
+   quantity: nat;
+ };
+type Cart = 
+ record {
+   couponApplied: opt CouponCode;
+   items: vec CartItem;
+   userId: UserId;
+ };
+type BannerInput = 
+ record {
+   image: ExternalBlob;
+   isActive: bool;
+   linkUrl: text;
+   order: nat;
+   subtitle: text;
+   title: text;
+ };
+type Banner = 
+ record {
+   id: nat;
+   image: ExternalBlob;
+   isActive: bool;
+   linkUrl: text;
+   order: nat;
+   subtitle: text;
+   title: text;
+ };
+type ApplyCouponResult = 
+ record {
+   discountAmount: nat;
+   isValid: bool;
+   message: text;
+ };
+type Address = 
+ record {
+   city: text;
+   line1: text;
+   line2: text;
+   name: text;
+   phone: text;
+   pincode: text;
+   state: text;
+ };
+service : {
+  _immutableObjectStorageBlobsAreLive: (hashes: vec blob) -> (vec bool) query;
+  _immutableObjectStorageBlobsToDelete: () -> (vec blob) query;
+  _immutableObjectStorageConfirmBlobDeletion: (blobs: vec blob) -> ();
+  _immutableObjectStorageCreateCertificate: (blobHash: text) ->
+   (_ImmutableObjectStorageCreateCertificateResult);
+  _immutableObjectStorageRefillCashier: (refillInformation:
+   opt _ImmutableObjectStorageRefillInformation) ->
+   (_ImmutableObjectStorageRefillResult);
+  _immutableObjectStorageUpdateGatewayPrincipals: () -> ();
+  _initializeAccessControl: () -> ();
+  addBanner: (input: BannerInput) -> (Banner);
+  addCoupon: (input: CouponInput) -> ();
+  addProduct: (input: ProductInput) -> (Product);
+  addReview: (input: ReviewInput) -> (Review);
+  addToCart: (productId: ProductId, quantity: nat) -> ();
+  addToWishlist: (productId: ProductId) -> (bool);
+  applyCoupon: (code: CouponCode, orderTotal: nat) -> (ApplyCouponResult);
+  applyReferralCode: (code: ReferralCode) -> (bool);
+  assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  clearCart: () -> ();
+  deleteBanner: (id: nat) -> (bool);
+  deleteCoupon: (code: CouponCode) -> (bool);
+  deleteProduct: (id: ProductId) -> (bool);
+  deleteReview: (reviewId: ReviewId) -> (bool);
+  generateReferralCode: () -> (ReferralCode);
+  getAllOrders: () -> (vec Order) query;
+  getAllUsers: () -> (vec record {
+                            UserId;
+                            UserProfile;
+                          }) query;
+  getAvailableCoupons: (orderTotal: nat) -> (vec Coupon) query;
+  getBanners: () -> (vec Banner) query;
+  getBestCoupon: (orderTotal: nat) -> (opt Coupon) query;
+  getCallerUserProfile: () -> (opt UserProfile) query;
+  getCallerUserRole: () -> (UserRole) query;
+  getCart: () -> (Cart) query;
+  getCategories: () -> (vec text) query;
+  getFlashDeals: () -> (vec Product) query;
+  getMyOrders: () -> (vec Order) query;
+  getMyReviews: () -> (vec Review) query;
+  getNotifications: () -> (vec Notification) query;
+  getOrder: (orderId: OrderId) -> (opt Order) query;
+  getProduct: (id: ProductId) -> (opt Product) query;
+  getProducts: () -> (vec Product) query;
+  getProductsByCategory: (category: text) -> (vec Product) query;
+  getRecentlyViewed: () -> (vec ProductId) query;
+  getReviews: (productId: ProductId) -> (vec Review) query;
+  getRewards: () -> (nat) query;
+  getTrendingProducts: () -> (vec Product) query;
+  getUserProfile: (userId: UserId) -> (opt UserProfile) query;
+  getWishlist: () -> (vec ProductId) query;
+  isCallerAdmin: () -> (bool) query;
+  markNotificationRead: (notificationId: NotificationId) -> (bool);
+  placeOrder: (input: PlaceOrderInput) -> (Order);
+  redeemRewards: (points: nat) -> (bool);
+  removeFromCart: (productId: ProductId) -> ();
+  removeFromWishlist: (productId: ProductId) -> (bool);
+  saveCallerUserProfile: (input: UserProfileInput) -> (UserProfile);
+  searchProducts: (searchQuery: text) -> (vec Product) query;
+  seedSampleData: () -> (text);
+  sendNotification: (userId: UserId, notificationType: NotificationType,
+   title: text, body: text) -> (Notification);
+  trackRecentlyViewed: (productId: ProductId) -> ();
+  updateBanner: (id: nat, input: BannerInput) -> (opt Banner);
+  updateCartItem: (productId: ProductId, quantity: nat) -> ();
+  updateCoupon: (input: CouponInput) -> (bool);
+  updateOrderStatus: (orderId: OrderId, newStatus: OrderStatus) ->
+   (opt Order);
+  updateProduct: (id: ProductId, input: ProductInput) -> (opt Product);
+}

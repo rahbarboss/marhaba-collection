@@ -1,0 +1,231 @@
+// Version: 1.0.0
+type Address__175912953 =
+  {
+    city : Text;
+    line1 : Text;
+    line2 : Text;
+    name : Text;
+    phone : Text;
+    pincode : Text;
+    state : Text
+  };
+type Banner__12444623 =
+  {
+    id : Nat;
+    image : ExternalBlob__246066408;
+    isActive : Bool;
+    linkUrl : Text;
+    order : Nat;
+    subtitle : Text;
+    title : Text
+  };
+type CartItem__139738426 = {productId : ProductId__160010635; quantity : Nat};
+type Cart__424804608 =
+  {
+    couponApplied : ?CouponCode__53879871;
+    items : [CartItem__139738426];
+    userId : UserId__158757552
+  };
+type CouponCode__53879871 = Text;
+type Coupon__243002030 =
+  {
+    code : CouponCode__53879871;
+    discountType : DiscountType__846355383;
+    discountValue : Nat;
+    expiresAt : Timestamp__301639476;
+    isActive : Bool;
+    maxDiscount : Nat;
+    maxUsage : Nat;
+    minOrderValue : Nat;
+    usageCount : Nat
+  };
+type Data__791452850<K, V> =
+  {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type DiscountType__846355383 = {#flat; #percent};
+type ExternalBlob__246066408 = Blob;
+type Internal__8484328<K, V> =
+  {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
+type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
+type Map__158565046<K, V> = Map__297112838<K, V>;
+type Map__297112838<K, V> =
+  {var root : Node__46230540<K, V>; var size : Nat__490723111};
+type Map__605269027<K, V> = Map__158565046<K, V>;
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__46230540<K, V> =
+  {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
+type NotificationId__307495059 = Nat;
+type NotificationType__547472519 = {#deal; #order; #price_drop; #reward};
+type Notification__355932847 =
+  {
+    body : Text;
+    createdAt : Timestamp__301639476;
+    id : NotificationId__307495059;
+    isRead : Bool;
+    notificationType : NotificationType__547472519;
+    title : Text;
+    userId : UserId__158757552
+  };
+type OrderId__197865225 = Nat;
+type OrderItem__241319351 =
+  {
+    image : ExternalBlob__246066408;
+    name : Text;
+    price : Nat;
+    productId : ProductId__160010635;
+    quantity : Nat
+  };
+type OrderStatus__272730104 =
+  {#cancelled; #delivered; #ordered; #out_for_delivery; #packed; #shipped};
+type Order__141779993 =
+  {
+    address : Address__175912953;
+    couponApplied : ?Text;
+    createdAt : Timestamp__301639476;
+    discountAmount : Nat;
+    id : OrderId__197865225;
+    items : [OrderItem__241319351];
+    paymentMethod : PaymentMethod__972042942;
+    paymentStatus : PaymentStatus__889961532;
+    status : OrderStatus__272730104;
+    totalAmount : Nat;
+    trackingSteps : [TrackingStep__885811494];
+    updatedAt : Timestamp__301639476;
+    userId : UserId__158757552
+  };
+type PaymentMethod__972042942 =
+  {
+    #card;
+    #cod;
+    #split : {amount1 : Nat; amount2 : Nat; method1 : Text; method2 : Text};
+    #upi;
+    #wallet
+  };
+type PaymentStatus__889961532 = {#failed; #paid; #pending; #refunded};
+type ProductId__160010635 = Nat;
+type Product__750902660 =
+  {
+    category : Text;
+    createdAt : Timestamp__301639476;
+    description : Text;
+    id : ProductId__160010635;
+    images : [ExternalBlob__246066408];
+    isFlashDeal : Bool;
+    isTrending : Bool;
+    name : Text;
+    originalPrice : Nat;
+    price : Nat;
+    rating : Float;
+    reviewCount : Nat;
+    specifications : [Specification__769758290];
+    stock : Nat;
+    tags : [Text]
+  };
+type ReferralCode__944724626 = Text;
+type Referral__954995839 =
+  {
+    code : ReferralCode__944724626;
+    ownerId : UserId__158757552;
+    rewardPoints : Nat;
+    usedBy : [UserId__158757552]
+  };
+type ReviewId__496285678 = Nat;
+type Review__513345496 =
+  {
+    comment : Text;
+    createdAt : Timestamp__301639476;
+    id : ReviewId__496285678;
+    productId : ProductId__160010635;
+    rating : Nat;
+    userId : UserId__158757552
+  };
+type Specification__769758290 = {key : Text; value : Text};
+type Timestamp__301639476 = Int;
+type TrackingStep__885811494 =
+  {
+    note : Text;
+    status : OrderStatus__272730104;
+    timestamp : ?Timestamp__301639476
+  };
+type UserId__158757552 = Principal;
+type UserProfile__277265826 =
+  {
+    address :
+      ?{
+         city : Text;
+         line1 : Text;
+         line2 : Text;
+         pincode : Text;
+         state : Text
+       };
+    email : Text;
+    name : Text;
+    phone : Text;
+    preferredLanguage : Text;
+    recentlyViewed : [ProductId__160010635];
+    referralCode : ReferralCode__944724626;
+    referredBy : ?ReferralCode__944724626;
+    rewardPoints : Nat;
+    wishlist : [ProductId__160010635]
+  };
+type UserRole__1054455867 = {#admin; #guest; #user};
+actor {
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__605269027<Principal, UserRole__1054455867>
+    };
+  stable banners :
+    {
+      var root : Node__46230540<Nat, Banner__12444623>;
+      var size : Nat__490723111
+    };
+  stable carts :
+    {
+      var root : Node__46230540<UserId__158757552, Cart__424804608>;
+      var size : Nat__490723111
+    };
+  stable coupons :
+    {
+      var root : Node__46230540<CouponCode__53879871, Coupon__243002030>;
+      var size : Nat__490723111
+    };
+  stable var nextBannerId : Nat;
+  stable var nextNotificationId : Nat;
+  stable var nextOrderId : Nat;
+  stable var nextProductId : Nat;
+  stable var nextReviewId : Nat;
+  stable notifications :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?Notification__355932847]];
+      var elementIndex : Nat__490723111
+    };
+  stable orders :
+    {
+      var root : Node__46230540<OrderId__197865225, Order__141779993>;
+      var size : Nat__490723111
+    };
+  stable products :
+    {
+      var root : Node__46230540<ProductId__160010635, Product__750902660>;
+      var size : Nat__490723111
+    };
+  stable profiles :
+    {
+      var root : Node__46230540<UserId__158757552, UserProfile__277265826>;
+      var size : Nat__490723111
+    };
+  stable referrals :
+    {
+      var root : Node__46230540<ReferralCode__944724626, Referral__954995839>;
+      var size : Nat__490723111
+    };
+  stable reviews :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?Review__513345496]];
+      var elementIndex : Nat__490723111
+    };
+  stable var seeded : Bool
+};

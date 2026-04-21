@@ -1,0 +1,26 @@
+{
+  "overview": "Marhaba Collection is a premium luxury e-commerce mobile web app with a deep dark Teal & Gold theme. It features a full customer shopping experience and a complete admin panel, always displayed inside a realistic phone mockup.",
+  "features": [
+    "Auto-sliding hero banners and flash deals on the home screen",
+    "Full product catalog with LED-glowing card borders",
+    "Cart, checkout, and order tracking with live status steps",
+    "Voice search and advanced filtering",
+    "Admin panel with product/banner CRUD wired to the backend",
+    "Real-time data sync — admin changes appear on customer pages within seconds",
+    "Order map showing delivery city markers and Kishanganj reference zone",
+    "Back button navigation inside Admin Panel with smart Dashboard exit",
+    "Welcome Admin toast on login",
+    "WhatsApp order sharing and PDF invoice generation"
+  ],
+  "category": "e-commerce",
+  "tags": [
+    "luxury",
+    "ecommerce",
+    "mobile",
+    "admin-panel",
+    "dark-theme",
+    "india",
+    "shopping"
+  ],
+  "last_updated": "2026-04-19T01:49:48.278Z"
+}
