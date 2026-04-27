@@ -19,7 +19,9 @@ import ReviewsApi "mixins/reviews-api";
 import ReferralsApi "mixins/referrals-api";
 import ProductsLib "lib/products";
 import CouponsLib "lib/coupons";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   // Authorization
   let accessControlState = AccessControl.initState();
@@ -53,7 +55,7 @@ actor {
   var seeded : Bool = false;
 
   // Mixin inclusions
-  include ProductsApi(accessControlState, products, banners, 1, 1);
+  include ProductsApi(accessControlState, products, banners);
   include OrdersApi(accessControlState, orders, products, 1);
   include UsersApi(accessControlState, profiles, referrals);
   include CouponsApi(accessControlState, carts, coupons);
@@ -253,8 +255,7 @@ actor {
     ];
 
     for (input in productSeeds.values()) {
-      let _ = ProductsLib.addProduct(products, nextProductId, input);
-      nextProductId += 1;
+      let _ = ProductsLib.addProduct(products, input);
     };
 
     // Seed 3 banners
@@ -286,8 +287,7 @@ actor {
     ];
 
     for (input in bannerSeeds.values()) {
-      let _ = ProductsLib.addBanner(banners, nextBannerId, input);
-      nextBannerId += 1;
+      let _ = ProductsLib.addBanner(banners, input);
     };
 
     // Seed 5 coupons

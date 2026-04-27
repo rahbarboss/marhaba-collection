@@ -51,13 +51,20 @@ module {
     }).toArray()
   };
 
+  public func nextProductId(products : Map.Map<Common.ProductId, Types.Product>) : Nat {
+    switch (products.maxEntry()) {
+      case (?(k, _)) k + 1;
+      case null 1;
+    }
+  };
+
   public func addProduct(
     products : Map.Map<Common.ProductId, Types.Product>,
-    nextId : Nat,
     input : Types.ProductInput,
   ) : Types.Product {
+    let id = nextProductId(products);
     let product : Types.Product = {
-      id = nextId;
+      id;
       name = input.name;
       description = input.description;
       price = input.price;
@@ -73,7 +80,7 @@ module {
       tags = input.tags;
       createdAt = Time.now();
     };
-    products.add(nextId, product);
+    products.add(id, product);
     product
   };
 
@@ -127,13 +134,20 @@ module {
     banners.values().toArray()
   };
 
+  public func nextBannerId(banners : Map.Map<Nat, Types.Banner>) : Nat {
+    switch (banners.maxEntry()) {
+      case (?(k, _)) k + 1;
+      case null 1;
+    }
+  };
+
   public func addBanner(
     banners : Map.Map<Nat, Types.Banner>,
-    nextId : Nat,
     input : Types.BannerInput,
   ) : Types.Banner {
+    let id = nextBannerId(banners);
     let banner : Types.Banner = {
-      id = nextId;
+      id;
       image = input.image;
       title = input.title;
       subtitle = input.subtitle;
@@ -141,7 +155,7 @@ module {
       order = input.order;
       isActive = input.isActive;
     };
-    banners.add(nextId, banner);
+    banners.add(id, banner);
     banner
   };
 

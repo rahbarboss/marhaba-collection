@@ -55,13 +55,13 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ExternalBlob } from "../backend";
+import type { Order as BackendOrder } from "../backend.d";
 import { formatINR } from "../components/PriceTag";
 import { useData } from "../context/DataContext";
 import { useNotifications } from "../context/NotificationContext";
-import { sampleBanners, sampleProducts } from "../data/sampleProducts";
 import { useBackendActor } from "../hooks/useBackendActor";
 import type { Banner, OrderStatus, Product, ProductCategory } from "../types";
 
@@ -119,6 +119,7 @@ function buildOsmUrl(lat: number, lng: number): string {
 // ─── Sample Orders ─────────────────────────────────────────────────────────────
 interface AdminOrder {
   id: string;
+  _backendId?: bigint;
   date: string;
   customer: string;
   phone: string;
@@ -130,80 +131,26 @@ interface AdminOrder {
   address?: string;
 }
 
-const INITIAL_ORDERS: AdminOrder[] = [
-  {
-    id: "ORD-2024-001",
-    date: "2024-03-15",
-    customer: "Arjun Mehta",
-    phone: "+91 9876543210",
-    items: 3,
-    totalInPaise: 1899900,
-    status: "delivered",
-    city: "Patna",
-    state: "Bihar",
-    address: "12, Gandhi Nagar, Patna",
-  },
-  {
-    id: "ORD-2024-002",
-    date: "2024-03-18",
-    customer: "Priya Sharma",
-    phone: "+91 8765432109",
-    items: 1,
-    totalInPaise: 13490000,
-    status: "shipped",
-    city: "Muzaffarpur",
-    state: "Bihar",
-    address: "45, Station Road, Muzaffarpur",
-  },
-  {
-    id: "ORD-2024-003",
-    date: "2024-03-20",
-    customer: "Ravi Kumar",
-    phone: "+91 7654321098",
-    items: 2,
-    totalInPaise: 2750000,
-    status: "packed",
-    city: "Gaya",
-    state: "Bihar",
-    address: "8, Bodh Gaya Road, Gaya",
-  },
-  {
-    id: "ORD-2024-004",
-    date: "2024-03-21",
-    customer: "Sita Devi",
-    phone: "+91 6543210987",
-    items: 1,
-    totalInPaise: 499900,
-    status: "ordered",
-    city: "Bhagalpur",
-    state: "Bihar",
-    address: "3, Silk City Colony, Bhagalpur",
-  },
-  {
-    id: "ORD-2024-005",
-    date: "2024-03-22",
-    customer: "Anil Jha",
-    phone: "+91 9988776655",
-    items: 4,
-    totalInPaise: 5490000,
-    status: "out_for_delivery",
-    city: "Kishanganj",
-    state: "Bihar",
-    address: "17, Court Road, Kishanganj",
-  },
-  {
-    id: "ORD-2024-006",
-    date: "2024-03-22",
-    customer: "Meena Gupta",
-    phone: "+91 9123456789",
-    items: 2,
-    totalInPaise: 3200000,
-    status: "cancelled",
-    city: "Darbhanga",
-    state: "Bihar",
-    address: "22, Lal Bagh, Darbhanga",
-  },
-];
+// ─── Backend Order Converter ───────────────────────────────────────────────────
+
+function toAdminOrder(o: BackendOrder): AdminOrder {
+  const date = new Date(Number(o.createdAt) / 1_000_000)
+    .toISOString()
+    .slice(0, 10);
+  return {
+    id: `ORD-${o.id.toString()}`,
+    _backendId: o.id,
+    date,
+    customer: o.address.name || "Customer",
+    phone: o.address.phone,
+    items: o.items.reduce((s, i) => s + Number(i.quantity), 0),
+    totalInPaise: Number(o.totalAmount),
+    status: o.status as unknown as OrderStatus,
+    city: o.address.city,
+    state: o.address.state,
+    address: [o.address.line1, o.address.line2].filter(Boolean).join(", "),
+  };
+}
 
 const SAMPLE_USERS = [
   {
@@ -1203,12 +1150,17 @@ export default function Admin() {
   const [history, setHistory] = useState<AdminTab[]>([]);
 
   // Local products/banners — seeded from DataContext, kept in sync after mutations
-  const [products, setProducts] = useState<Product[]>(() =>
-    ctxProducts.length ? ctxProducts : sampleProducts,
-  );
-  const [banners, setBanners] = useState<Banner[]>(() =>
-    ctxBanners.length ? ctxBanners : sampleBanners,
-  );
+  const [products, setProducts] = useState<Product[]>(ctxProducts);
+  const [banners, setBanners] = useState<Banner[]>(ctxBanners);
+
+  // Sync local lists whenever DataContext updates (after refetch)
+  useEffect(() => {
+    setProducts(ctxProducts);
+  }, [ctxProducts]);
+
+  useEffect(() => {
+    setBanners(ctxBanners);
+  }, [ctxBanners]);
 
   const [productModal, setProductModal] = useState<{
     open: boolean;
@@ -1227,14 +1179,13 @@ export default function Admin() {
     banner?: Banner | null;
   }>({ open: false });
 
-  const [orders, setOrders] = useState<AdminOrder[]>(INITIAL_ORDERS);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderDetail, setOrderDetail] = useState<{
     open: boolean;
     order: AdminOrder | null;
   }>({ open: false, order: null });
-  const [selectedOrderId, setSelectedOrderId] = useState<string>(
-    INITIAL_ORDERS[0]?.id ?? "",
-  );
+  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
 
   // ── Navigate between tabs with history tracking ──────────────────────────────
   const goToTab = (next: AdminTab) => {
@@ -1260,6 +1211,28 @@ export default function Admin() {
     setIsAuthed(false);
     navigate({ to: "/" });
   };
+
+  // ── Fetch real orders from backend ───────────────────────────────────────────
+  const fetchOrders = useCallback(async () => {
+    if (!actor) return;
+    setOrdersLoading(true);
+    try {
+      const backendOrders = await actor.getAllOrders();
+      setOrders(backendOrders.map(toAdminOrder));
+      if (backendOrders.length > 0) {
+        setSelectedOrderId(`ORD-${backendOrders[0].id.toString()}`);
+      }
+    } catch (err) {
+      console.error("[Admin] fetchOrders error:", err);
+      toast.error("Failed to load orders");
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [actor]);
+
+  useEffect(() => {
+    if (tab === "orders") fetchOrders();
+  }, [tab, fetchOrders]);
 
   if (!isAuthed) {
     return <AdminLogin onLogin={() => setIsAuthed(true)} />;
@@ -1287,41 +1260,42 @@ export default function Admin() {
         })),
       };
 
-      if (isEdit && actor) {
-        const updated = await actor.updateProduct(BigInt(p.id), input);
-        if (updated) {
-          const next = products.map((x) => (x.id === p.id ? p : x));
-          setProducts(next);
-          toast.success("Product updated!");
-        } else {
-          toast.error("Product not found in backend");
-        }
-      } else if (actor) {
-        await actor.addProduct(input);
-        const next = [p, ...products];
-        setProducts(next);
-        toast.success("Product added!");
-      } else {
+      if (!actor) {
         toast.error("Backend not available. Please try again.");
         return;
       }
-      refetch();
+
+      if (isEdit) {
+        const updated = await actor.updateProduct(BigInt(p.id), input);
+        if (!updated) {
+          toast.error("Product not found in backend");
+          return;
+        }
+      } else {
+        await actor.addProduct(input);
+      }
+
+      // Small delay to let the backend commit before we refetch
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await refetch();
+      toast.success(isEdit ? "Product updated!" : "Product saved!");
     } catch (err) {
       console.error("[Admin] saveProduct error:", err);
       toast.error(
-        isEdit ? "Failed to update product" : "Failed to add product",
+        isEdit ? "Failed to update product" : "Failed to save product",
       );
     }
   };
 
   const deleteProduct = async (id: string): Promise<void> => {
     try {
-      if (actor) {
-        await actor.deleteProduct(BigInt(id));
+      if (!actor) {
+        toast.error("Backend not available. Please try again.");
+        return;
       }
-      const next = products.filter((p) => p.id !== id);
-      setProducts(next);
-      refetch();
+      await actor.deleteProduct(BigInt(id));
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await refetch();
       toast.success("Product deleted");
     } catch (err) {
       console.error("[Admin] deleteProduct error:", err);
@@ -1345,39 +1319,39 @@ export default function Admin() {
         isActive: true,
       };
 
-      if (isEdit && actor) {
-        const updated = await actor.updateBanner(BigInt(b.id), input);
-        if (updated) {
-          const next = banners.map((x) => (x.id === b.id ? b : x));
-          setBanners(next);
-          toast.success("Banner updated!");
-        } else {
-          toast.error("Banner not found in backend");
-        }
-      } else if (actor) {
-        await actor.addBanner(input);
-        const next = [b, ...banners];
-        setBanners(next);
-        toast.success("Banner added!");
-      } else {
+      if (!actor) {
         toast.error("Backend not available. Please try again.");
         return;
       }
-      refetch();
+
+      if (isEdit) {
+        const updated = await actor.updateBanner(BigInt(b.id), input);
+        if (!updated) {
+          toast.error("Banner not found in backend");
+          return;
+        }
+      } else {
+        await actor.addBanner(input);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await refetch();
+      toast.success(isEdit ? "Banner updated!" : "Banner saved!");
     } catch (err) {
       console.error("[Admin] saveBanner error:", err);
-      toast.error(isEdit ? "Failed to update banner" : "Failed to add banner");
+      toast.error(isEdit ? "Failed to update banner" : "Failed to save banner");
     }
   };
 
   const deleteBanner = async (id: string): Promise<void> => {
     try {
-      if (actor) {
-        await actor.deleteBanner(BigInt(id));
+      if (!actor) {
+        toast.error("Backend not available. Please try again.");
+        return;
       }
-      const next = banners.filter((b) => b.id !== id);
-      setBanners(next);
-      refetch();
+      await actor.deleteBanner(BigInt(id));
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await refetch();
       toast.success("Banner deleted");
     } catch (err) {
       console.error("[Admin] deleteBanner error:", err);
@@ -1385,9 +1359,28 @@ export default function Admin() {
     }
   };
 
-  const updateOrderStatus = (id: string, status: OrderStatus) => {
+  const updateOrderStatus = async (id: string, status: OrderStatus) => {
+    const order = orders.find((o) => o.id === id);
+    // Optimistic update
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
-    toast.success("Order status updated");
+    try {
+      if (actor && order?._backendId !== undefined) {
+        await actor.updateOrderStatus(
+          order._backendId,
+          status as unknown as import("../backend.d").OrderStatus,
+        );
+      }
+      toast.success("Order status updated");
+    } catch (err) {
+      console.error("[Admin] updateOrderStatus error:", err);
+      // Rollback
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === id ? { ...o, status: order?.status ?? status } : o,
+        ),
+      );
+      toast.error("Failed to update order status");
+    }
   };
 
   // Derived data
@@ -1953,82 +1946,122 @@ export default function Admin() {
         {/* ── Orders ── */}
         {tab === "orders" && (
           <div data-ocid="admin.orders.section" className="space-y-4">
-            <div>
-              <h2 className="text-lg font-bold font-display">Orders</h2>
-              <p className="text-xs text-muted-foreground">
-                {orders.length} total orders
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold font-display">Orders</h2>
+                <p className="text-xs text-muted-foreground">
+                  {ordersLoading
+                    ? "Loading..."
+                    : `${orders.length} total orders`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={fetchOrders}
+                disabled={ordersLoading}
+                className="h-8 px-3 rounded-lg text-xs border border-border hover:border-primary hover:text-primary transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                {ordersLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Navigation className="h-3 w-3" />
+                )}
+                Refresh
+              </button>
             </div>
 
-            <div className="space-y-3">
-              {orders.map((o, i) => (
-                <div
-                  key={o.id}
-                  data-ocid={`admin.orders.item.${i + 1}`}
-                  className="rounded-xl border border-border bg-card p-3"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-sm font-semibold">{o.customer}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {o.id} · {o.date}
-                      </p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MapPin className="h-2.5 w-2.5 text-primary" />
-                        {o.address ?? `${o.city}, ${o.state}`}
-                      </p>
+            {ordersLoading ? (
+              <div
+                data-ocid="admin.orders.loading_state"
+                className="flex items-center justify-center py-12 text-muted-foreground gap-2"
+              >
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-sm">Loading orders...</span>
+              </div>
+            ) : orders.length === 0 ? (
+              <div
+                data-ocid="admin.orders.empty_state"
+                className="rounded-xl border border-border bg-card p-8 text-center"
+              >
+                <ShoppingBag className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  No orders yet
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Orders placed by customers will appear here
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {orders.map((o, i) => (
+                  <div
+                    key={o.id}
+                    data-ocid={`admin.orders.item.${i + 1}`}
+                    className="rounded-xl border border-border bg-card p-3"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="text-sm font-semibold">{o.customer}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {o.id} · {o.date}
+                        </p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-2.5 w-2.5 text-primary" />
+                          {o.address ?? `${o.city}, ${o.state}`}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className="text-sm font-bold"
+                          style={{ color: "oklch(0.675 0.25 178)" }}
+                        >
+                          {formatINR(o.totalInPaise)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {o.items} item{o.items > 1 ? "s" : ""}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p
-                        className="text-sm font-bold"
-                        style={{ color: "oklch(0.675 0.25 178)" }}
+
+                    <div className="flex items-center justify-between">
+                      <Select
+                        value={o.status}
+                        onValueChange={(v) =>
+                          updateOrderStatus(o.id, v as OrderStatus)
+                        }
                       >
-                        {formatINR(o.totalInPaise)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {o.items} item{o.items > 1 ? "s" : ""}
-                      </p>
+                        <SelectTrigger
+                          data-ocid={`admin.orders.status_select.${i + 1}`}
+                          className="h-7 text-xs w-44 border rounded-full"
+                          style={STATUS_STYLES[o.status]}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(statusLabels) as OrderStatus[]).map(
+                            (s) => (
+                              <SelectItem key={s} value={s} className="text-xs">
+                                {statusLabels[s]}
+                              </SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
+
+                      <button
+                        type="button"
+                        data-ocid={`admin.orders.view_button.${i + 1}`}
+                        onClick={() => setOrderDetail({ open: true, order: o })}
+                        className="h-7 px-3 rounded-full text-xs border border-border hover:border-primary hover:text-primary transition-colors flex items-center gap-1"
+                      >
+                        <Eye className="h-3 w-3" />
+                        View
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <Select
-                      value={o.status}
-                      onValueChange={(v) =>
-                        updateOrderStatus(o.id, v as OrderStatus)
-                      }
-                    >
-                      <SelectTrigger
-                        data-ocid={`admin.orders.status_select.${i + 1}`}
-                        className="h-7 text-xs w-44 border rounded-full"
-                        style={STATUS_STYLES[o.status]}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.keys(statusLabels) as OrderStatus[]).map(
-                          (s) => (
-                            <SelectItem key={s} value={s} className="text-xs">
-                              {statusLabels[s]}
-                            </SelectItem>
-                          ),
-                        )}
-                      </SelectContent>
-                    </Select>
-
-                    <button
-                      type="button"
-                      data-ocid={`admin.orders.view_button.${i + 1}`}
-                      onClick={() => setOrderDetail({ open: true, order: o })}
-                      className="h-7 px-3 rounded-full text-xs border border-border hover:border-primary hover:text-primary transition-colors flex items-center gap-1"
-                    >
-                      <Eye className="h-3 w-3" />
-                      View
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Interactive Delivery Map */}
             <div>

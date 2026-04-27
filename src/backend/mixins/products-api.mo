@@ -9,12 +9,7 @@ mixin (
   accessControlState : AccessControl.AccessControlState,
   products : Map.Map<Common.ProductId, Types.Product>,
   banners : Map.Map<Nat, Types.Banner>,
-  initialProductId : Nat,
-  initialBannerId : Nat,
 ) {
-  var nextProductId : Nat = initialProductId;
-  var nextBannerId : Nat = initialBannerId;
-
   // --- Public read endpoints ---
 
   public query func getProducts() : async [Types.Product] {
@@ -55,9 +50,7 @@ mixin (
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can add products");
     };
-    let product = ProductsLib.addProduct(products, nextProductId, input);
-    nextProductId += 1;
-    product
+    ProductsLib.addProduct(products, input)
   };
 
   public shared ({ caller }) func updateProduct(id : Common.ProductId, input : Types.ProductInput) : async ?Types.Product {
@@ -78,9 +71,7 @@ mixin (
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Only admins can add banners");
     };
-    let banner = ProductsLib.addBanner(banners, nextBannerId, input);
-    nextBannerId += 1;
-    banner
+    ProductsLib.addBanner(banners, input)
   };
 
   public shared ({ caller }) func updateBanner(id : Nat, input : Types.BannerInput) : async ?Types.Banner {

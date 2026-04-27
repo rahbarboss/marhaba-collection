@@ -11,7 +11,6 @@ import type {
   Banner as BackendBanner,
   Product as BackendProduct,
 } from "../backend.d";
-import { sampleBanners, sampleProducts } from "../data/sampleProducts";
 import { useBackendActor } from "../hooks/useBackendActor";
 import type { Banner, Product, ProductCategory } from "../types";
 
@@ -79,7 +78,7 @@ interface DataContextValue {
   flashDeals: Product[];
   trendingProducts: Product[];
   isUpdating: boolean;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextValue | null>(null);
@@ -88,8 +87,8 @@ const DataContext = createContext<DataContextValue | null>(null);
 
 function DataProviderInner({ children }: { children: ReactNode }) {
   const { actor, isFetching } = useBackendActor();
-  const [products, setProducts] = useState<Product[]>(sampleProducts);
-  const [banners, setBanners] = useState<Banner[]>(sampleBanners);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
   const isMounted = useRef(true);
 
@@ -107,17 +106,14 @@ function DataProviderInner({ children }: { children: ReactNode }) {
 
       if (!isMounted.current) return;
 
-      if (backendProducts.length > 0) {
-        setProducts(backendProducts.map(toFrontendProduct));
-      }
-      if (backendBanners.length > 0) {
-        setBanners(
-          backendBanners
-            .filter((b) => b.isActive)
-            .sort((a, b) => Number(a.order) - Number(b.order))
-            .map(toFrontendBanner),
-        );
-      }
+      // Always update from backend — even if empty (removes stale data)
+      setProducts(backendProducts.map(toFrontendProduct));
+      setBanners(
+        backendBanners
+          .filter((b) => b.isActive)
+          .sort((a, b) => Number(a.order) - Number(b.order))
+          .map(toFrontendBanner),
+      );
     } catch (err) {
       // Keep existing data on error; silently log
       console.warn("[DataContext] fetch failed:", err);
